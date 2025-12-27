@@ -86,7 +86,7 @@ public class Repository : IAsyncDisposable, IDisposable
     {
         var tableName = GetTableName<T>();
         var json = System.Text.Json.JsonSerializer.Serialize(data);
-        
+
         // Use jsonb() function to convert JSON to JSONB format for storage
         var sql = $@"
             INSERT INTO [{tableName}] (id, data, updated_at)
@@ -111,7 +111,7 @@ public class Repository : IAsyncDisposable, IDisposable
     public async Task<T?> GetAsync<T>(string id)
     {
         var tableName = GetTableName<T>();
-        
+
         // Use json() function to convert JSONB back to JSON string
         var sql = $"SELECT json(data) as data FROM [{tableName}] WHERE id = @Id";
         var json = await _connection.QueryFirstOrDefaultAsync<string>(sql, new { Id = id });
@@ -132,7 +132,7 @@ public class Repository : IAsyncDisposable, IDisposable
     public async Task<IEnumerable<T>> GetAllAsync<T>()
     {
         var tableName = GetTableName<T>();
-        
+
         // Use json() function to convert JSONB back to JSON strings
         var sql = $"SELECT json(data) as data FROM [{tableName}]";
         var jsonResults = await _connection.QueryAsync<string>(sql);

@@ -2,25 +2,33 @@
 # Label PRs based on changed files
 
 # Core library changes
-'area/core':
-  - 'Repository.cs'
-  - 'JsonTypeHandler.cs'
-  - 'JsonbStore.csproj'
+area/core:
+  - changed-files:
+    - any-glob-to-any-file: 
+      - 'Repository.cs'
+      - 'JsonTypeHandler.cs'
+      - 'JsonbStore.csproj'
 
 # Tests
-'area/tests':
-  - 'tests/**/*'
+area/tests:
+  - changed-files:
+    - any-glob-to-any-file: 'tests/**/*'
 
 # Documentation
-'area/docs':
-  - 'README.md'
-  - '*.md'
+area/docs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'README.md'
+      - '*.md'
 
 # CI/CD
-'area/ci':
-  - '.github/**/*'
+area/ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**/*'
 
 # Dependencies
-'dependencies':
-  - '**/packages.lock.json'
-  - '**/*.csproj'
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/packages.lock.json'
+      - '**/*.csproj'
