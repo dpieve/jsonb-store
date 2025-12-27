@@ -28,17 +28,17 @@ class Program
     static void TestJsonStorage()
     {
         using var repo = new Repository("/tmp/test_json.db");
-        repo.CreateJsonTable("people");
+        repo.CreateJsonTable<Person>();
 
         // Insert test data
-        repo.UpsertJson("people", "1", new Person
+        repo.UpsertJson("1", new Person
         {
             Name = "Alice Smith",
             Age = 30,
             Email = "alice@example.com"
         });
 
-        repo.UpsertJson("people", "2", new Person
+        repo.UpsertJson("2", new Person
         {
             Name = "Bob Johnson",
             Age = 25,
@@ -46,36 +46,36 @@ class Program
         });
 
         // Retrieve
-        var person1 = repo.GetJson<Person>("people", "1");
+        var person1 = repo.GetJson<Person>("1");
         Console.WriteLine($"Retrieved: {person1?.Name}, Age: {person1?.Age}, Email: {person1?.Email}");
 
         // Update
-        repo.UpsertJson("people", "1", new Person
+        repo.UpsertJson("1", new Person
         {
             Name = "Alice Smith",
             Age = 31,
             Email = "alice@example.com"
         });
 
-        person1 = repo.GetJson<Person>("people", "1");
+        person1 = repo.GetJson<Person>("1");
         Console.WriteLine($"After update: {person1?.Name}, Age: {person1?.Age}");
 
         // Get all
-        var allPeople = repo.GetAllJson<Person>("people").ToList();
+        var allPeople = repo.GetAllJson<Person>().ToList();
         Console.WriteLine($"Total people in database: {allPeople.Count}");
 
         // Delete
-        var deleted = repo.DeleteJson("people", "2");
+        var deleted = repo.DeleteJson<Person>("2");
         Console.WriteLine($"Deleted person 2: {deleted}");
 
-        allPeople = repo.GetAllJson<Person>("people").ToList();
+        allPeople = repo.GetAllJson<Person>().ToList();
         Console.WriteLine($"Remaining people: {allPeople.Count}");
     }
 
     static void TestSignalStorage()
     {
         using var repo = new Repository("/tmp/test_signals.db");
-        repo.CreateSignalTable("biosignals");
+        repo.CreateSignalTable<BiosignalRecording>();
 
         // Create sample EEG data
         var eegData = GenerateSampleSignal(250.0, 5, 8); // 5 seconds, 8 channels, 250 Hz
@@ -88,8 +88,7 @@ class Program
         });
 
         // Store signal
-        repo.UpsertSignal(
-            tableName: "biosignals",
+        repo.UpsertSignal<BiosignalRecording>(
             id: "eeg_001",
             signalType: "EEG",
             data: eegData,
@@ -100,8 +99,7 @@ class Program
 
         // Store EMG signal
         var emgData = GenerateSampleSignal(1000.0, 3, 4); // 3 seconds, 4 channels, 1000 Hz
-        repo.UpsertSignal(
-            tableName: "biosignals",
+        repo.UpsertSignal<BiosignalRecording>(
             id: "emg_001",
             signalType: "EMG",
             data: emgData,
@@ -110,7 +108,7 @@ class Program
         );
 
         // Retrieve
-        var eegSignal = repo.GetSignal("biosignals", "eeg_001");
+        var eegSignal = repo.GetSignal<BiosignalRecording>("eeg_001");
         if (eegSignal != null)
         {
             Console.WriteLine($"Retrieved {eegSignal.SignalType} signal:");
@@ -124,18 +122,18 @@ class Program
         }
 
         // Get all signals
-        var allSignals = repo.GetSignals("biosignals").ToList();
+        var allSignals = repo.GetSignals<BiosignalRecording>().ToList();
         Console.WriteLine($"Total signals: {allSignals.Count}");
 
         // Get filtered by type
-        var eegSignals = repo.GetSignals("biosignals", "EEG").ToList();
+        var eegSignals = repo.GetSignals<BiosignalRecording>("EEG").ToList();
         Console.WriteLine($"EEG signals only: {eegSignals.Count}");
     }
 
     static void TestTransactionBatching()
     {
         using var repo = new Repository("/tmp/test_batch.db");
-        repo.CreateJsonTable("metrics");
+        repo.CreateJsonTable<Metric>();
 
         var startTime = DateTime.UtcNow;
 
@@ -144,7 +142,7 @@ class Program
         {
             for (int i = 0; i < 100; i++)
             {
-                repo.UpsertJson("metrics", $"metric_{i}", new
+                repo.UpsertJson($"metric_{i}", new Metric
                 {
                     Timestamp = DateTime.UtcNow,
                     Value = Random.Shared.NextDouble() * 100,
@@ -156,7 +154,7 @@ class Program
         var elapsed = DateTime.UtcNow - startTime;
         Console.WriteLine($"Inserted 100 records in {elapsed.TotalMilliseconds:F2} ms");
 
-        var count = repo.GetAllJson<dynamic>("metrics").Count();
+        var count = repo.GetAllJson<Metric>().Count();
         Console.WriteLine($"Verified: {count} records in database");
     }
 
@@ -182,4 +180,15 @@ public class Person
     public string Name { get; set; } = string.Empty;
     public int Age { get; set; }
     public string Email { get; set; } = string.Empty;
+}
+
+public class BiosignalRecording
+{
+}
+
+public class Metric
+{
+    public DateTime Timestamp { get; set; }
+    public double Value { get; set; }
+    public string Sensor { get; set; } = string.Empty;
 }

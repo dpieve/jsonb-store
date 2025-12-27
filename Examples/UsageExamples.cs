@@ -42,18 +42,18 @@ public static class UsageExamples
     {
         using var repo = new Repository("example.db");
 
-        // Create a table for storing person objects
-        repo.CreateJsonTable("people");
+        // Create a table for storing person objects (table name will be "Person")
+        repo.CreateJsonTable<Person>();
 
         // Insert some people
-        repo.UpsertJson("people", "person1", new Person
+        repo.UpsertJson("person1", new Person
         {
             Name = "John Doe",
             Age = 30,
             Email = "john@example.com"
         });
 
-        repo.UpsertJson("people", "person2", new Person
+        repo.UpsertJson("person2", new Person
         {
             Name = "Jane Smith",
             Age = 25,
@@ -61,11 +61,11 @@ public static class UsageExamples
         });
 
         // Retrieve a specific person
-        var person = repo.GetJson<Person>("people", "person1");
+        var person = repo.GetJson<Person>("person1");
         Console.WriteLine($"Retrieved: {person?.Name}, Age: {person?.Age}");
 
         // Update a person
-        repo.UpsertJson("people", "person1", new Person
+        repo.UpsertJson("person1", new Person
         {
             Name = "John Doe",
             Age = 31,  // Birthday!
@@ -73,14 +73,14 @@ public static class UsageExamples
         });
 
         // Get all people
-        var allPeople = repo.GetAllJson<Person>("people");
+        var allPeople = repo.GetAllJson<Person>();
         foreach (var p in allPeople)
         {
             Console.WriteLine($"- {p.Name}, {p.Age}");
         }
 
         // Delete a person
-        repo.DeleteJson("people", "person2");
+        repo.DeleteJson<Person>("person2");
     }
 
     /// <summary>
@@ -90,8 +90,8 @@ public static class UsageExamples
     {
         using var repo = new Repository("biosignals.db");
 
-        // Create a table for storing biosignals
-        repo.CreateSignalTable("recordings");
+        // Create a table for storing biosignals (table name will be "BiosignalRecording")
+        repo.CreateSignalTable<BiosignalRecording>();
 
         // Simulate EEG data (in practice, this would be real signal data)
         var eegData = GenerateSampleEEGData(sampleRate: 250.0, durationSeconds: 10, channels: 8);
@@ -104,8 +104,7 @@ public static class UsageExamples
             DeviceModel = "NeuroScan-X"
         };
 
-        repo.UpsertSignal(
-            tableName: "recordings",
+        repo.UpsertSignal<BiosignalRecording>(
             id: "eeg_001",
             signalType: "EEG",
             data: eegData,
@@ -117,8 +116,7 @@ public static class UsageExamples
         // Simulate EMG data
         var emgData = GenerateSampleEMGData(sampleRate: 1000.0, durationSeconds: 5, channels: 4);
 
-        repo.UpsertSignal(
-            tableName: "recordings",
+        repo.UpsertSignal<BiosignalRecording>(
             id: "emg_001",
             signalType: "EMG",
             data: emgData,
@@ -127,7 +125,7 @@ public static class UsageExamples
         );
 
         // Retrieve a specific signal
-        var eegSignal = repo.GetSignal("recordings", "eeg_001");
+        var eegSignal = repo.GetSignal<BiosignalRecording>("eeg_001");
         if (eegSignal != null)
         {
             Console.WriteLine($"Retrieved EEG signal: {eegSignal.SignalType}, " +
@@ -143,15 +141,22 @@ public static class UsageExamples
         }
 
         // Get all EEG signals
-        var eegSignals = repo.GetSignals("recordings", "EEG");
+        var eegSignals = repo.GetSignals<BiosignalRecording>("EEG");
         Console.WriteLine($"Total EEG recordings: {eegSignals.Count()}");
 
         // Get all signals
-        var allSignals = repo.GetSignals("recordings");
+        var allSignals = repo.GetSignals<BiosignalRecording>();
         foreach (var signal in allSignals)
         {
             Console.WriteLine($"- {signal.Id}: {signal.SignalType}, {signal.Data.Length} bytes");
         }
+    }
+
+    /// <summary>
+    /// Placeholder class to represent a biosignal recording table.
+    /// </summary>
+    public class BiosignalRecording
+    {
     }
 
     /// <summary>
@@ -160,14 +165,14 @@ public static class UsageExamples
     public static void TransactionBatchingExample()
     {
         using var repo = new Repository("batch.db");
-        repo.CreateJsonTable("metrics");
+        repo.CreateJsonTable<Metric>();
 
         // Batch insert 1000 records in a single transaction
         repo.ExecuteInTransaction(() =>
         {
             for (int i = 0; i < 1000; i++)
             {
-                repo.UpsertJson("metrics", $"metric_{i}", new
+                repo.UpsertJson($"metric_{i}", new Metric
                 {
                     Timestamp = DateTime.UtcNow,
                     Value = Random.Shared.NextDouble() * 100,
@@ -177,6 +182,19 @@ public static class UsageExamples
         });
 
         Console.WriteLine("Batch insert completed successfully");
+    }
+
+    /// <summary>
+    /// Placeholder class to represent a metric.
+    /// </summary>
+    public class Metric
+    {
+        /// <summary>Gets or sets the timestamp.</summary>
+        public DateTime Timestamp { get; set; }
+        /// <summary>Gets or sets the value.</summary>
+        public double Value { get; set; }
+        /// <summary>Gets or sets the sensor identifier.</summary>
+        public string Sensor { get; set; } = string.Empty;
     }
 
     /// <summary>

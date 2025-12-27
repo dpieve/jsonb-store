@@ -51,13 +51,23 @@ public class Repository : IDisposable
     }
 
     /// <summary>
-    /// Creates a table for storing JSON objects with a generic schema.
+    /// Gets the table name from a type.
     /// </summary>
-    /// <param name="tableName">Name of the table to create</param>
-    public void CreateJsonTable(string tableName)
+    private static string GetTableName<T>()
     {
+        return typeof(T).Name;
+    }
+
+    /// <summary>
+    /// Creates a table for storing JSON objects with a generic schema.
+    /// The table name will be the name of the type T.
+    /// </summary>
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
+    public void CreateJsonTable<T>()
+    {
+        var tableName = GetTableName<T>();
         var sql = $@"
-            CREATE TABLE IF NOT EXISTS {tableName} (
+            CREATE TABLE IF NOT EXISTS [{tableName}] (
                 id TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
                 created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
@@ -68,12 +78,14 @@ public class Repository : IDisposable
 
     /// <summary>
     /// Creates a table for storing binary signals (e.g., EEG, EMG, EKG data).
+    /// The table name will be the name of the type T.
     /// </summary>
-    /// <param name="tableName">Name of the table to create</param>
-    public void CreateSignalTable(string tableName)
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
+    public void CreateSignalTable<T>()
     {
+        var tableName = GetTableName<T>();
         var sql = $@"
-            CREATE TABLE IF NOT EXISTS {tableName} (
+            CREATE TABLE IF NOT EXISTS [{tableName}] (
                 id TEXT PRIMARY KEY,
                 signal_type TEXT NOT NULL,
                 sample_rate REAL,
@@ -86,16 +98,16 @@ public class Repository : IDisposable
     }
 
     /// <summary>
-    /// Inserts or updates a JSON object in the specified table.
+    /// Inserts or updates a JSON object in a table named after the type T.
     /// </summary>
-    /// <typeparam name="T">Type of the object to store</typeparam>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type of the object to store (also used as table name)</typeparam>
     /// <param name="id">Unique identifier for the object</param>
     /// <param name="data">The object to store</param>
-    public void UpsertJson<T>(string tableName, string id, T data)
+    public void UpsertJson<T>(string id, T data)
     {
+        var tableName = GetTableName<T>();
         var sql = $@"
-            INSERT INTO {tableName} (id, data, updated_at)
+            INSERT INTO [{tableName}] (id, data, updated_at)
             VALUES (@Id, @Data, strftime('%s', 'now'))
             ON CONFLICT(id) DO UPDATE SET
                 data = excluded.data,
@@ -109,15 +121,15 @@ public class Repository : IDisposable
     }
 
     /// <summary>
-    /// Retrieves a JSON object by its ID from the specified table.
+    /// Retrieves a JSON object by its ID from a table named after the type T.
     /// </summary>
-    /// <typeparam name="T">Type of the object to retrieve</typeparam>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type of the object to retrieve (also used as table name)</typeparam>
     /// <param name="id">Unique identifier of the object</param>
     /// <returns>The deserialized object, or default if not found</returns>
-    public T? GetJson<T>(string tableName, string id)
+    public T? GetJson<T>(string id)
     {
-        var sql = $"SELECT data FROM {tableName} WHERE id = @Id";
+        var tableName = GetTableName<T>();
+        var sql = $"SELECT data FROM [{tableName}] WHERE id = @Id";
         var json = _connection.QueryFirstOrDefault<string>(sql, new { Id = id });
 
         if (string.IsNullOrEmpty(json))
@@ -129,50 +141,56 @@ public class Repository : IDisposable
     }
 
     /// <summary>
-    /// Retrieves all JSON objects from the specified table.
+    /// Retrieves all JSON objects from a table named after the type T.
     /// </summary>
-    /// <typeparam name="T">Type of the objects to retrieve</typeparam>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type of the objects to retrieve (also used as table name)</typeparam>
     /// <returns>An enumerable of deserialized objects</returns>
-    public IEnumerable<T> GetAllJson<T>(string tableName)
+    public IEnumerable<T> GetAllJson<T>()
     {
-        var sql = $"SELECT data FROM {tableName}";
+        var tableName = GetTableName<T>();
+        var sql = $"SELECT data FROM [{tableName}]";
         var jsonResults = _connection.Query<string>(sql);
 
         foreach (var json in jsonResults)
         {
-            yield return System.Text.Json.JsonSerializer.Deserialize<T>(json)!;
+            var item = System.Text.Json.JsonSerializer.Deserialize<T>(json);
+            if (item != null)
+            {
+                yield return item;
+            }
         }
     }
 
     /// <summary>
-    /// Deletes a JSON object by its ID from the specified table.
+    /// Deletes a JSON object by its ID from a table named after the type T.
     /// </summary>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
     /// <param name="id">Unique identifier of the object to delete</param>
     /// <returns>True if the object was deleted, false if it didn't exist</returns>
-    public bool DeleteJson(string tableName, string id)
+    public bool DeleteJson<T>(string id)
     {
-        var sql = $"DELETE FROM {tableName} WHERE id = @Id";
+        var tableName = GetTableName<T>();
+        var sql = $"DELETE FROM [{tableName}] WHERE id = @Id";
         var affectedRows = _connection.Execute(sql, new { Id = id });
         return affectedRows > 0;
     }
 
     /// <summary>
-    /// Inserts or updates a binary signal in the specified table.
+    /// Inserts or updates a binary signal in a table named after the type T.
     /// </summary>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
     /// <param name="id">Unique identifier for the signal</param>
     /// <param name="signalType">Type of signal (e.g., "EEG", "EMG", "EKG")</param>
     /// <param name="data">Raw binary signal data</param>
     /// <param name="sampleRate">Sample rate in Hz (optional)</param>
     /// <param name="channels">Number of channels (optional)</param>
     /// <param name="metadata">Additional metadata as JSON (optional)</param>
-    public void UpsertSignal(string tableName, string id, string signalType, byte[] data,
+    public void UpsertSignal<T>(string id, string signalType, byte[] data,
         double? sampleRate = null, int? channels = null, string? metadata = null)
     {
+        var tableName = GetTableName<T>();
         var sql = $@"
-            INSERT INTO {tableName} (id, signal_type, sample_rate, channels, data, metadata)
+            INSERT INTO [{tableName}] (id, signal_type, sample_rate, channels, data, metadata)
             VALUES (@Id, @SignalType, @SampleRate, @Channels, @Data, @Metadata)
             ON CONFLICT(id) DO UPDATE SET
                 signal_type = excluded.signal_type,
@@ -193,45 +211,48 @@ public class Repository : IDisposable
     }
 
     /// <summary>
-    /// Retrieves a binary signal by its ID from the specified table.
+    /// Retrieves a binary signal by its ID from a table named after the type T.
     /// </summary>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
     /// <param name="id">Unique identifier of the signal</param>
     /// <returns>The signal data and metadata, or null if not found</returns>
-    public SignalData? GetSignal(string tableName, string id)
+    public SignalData? GetSignal<T>(string id)
     {
+        var tableName = GetTableName<T>();
         var sql = $@"
             SELECT id, signal_type, sample_rate, channels, data, metadata, created_at
-            FROM {tableName}
+            FROM [{tableName}]
             WHERE id = @Id";
 
         return _connection.QueryFirstOrDefault<SignalData>(sql, new { Id = id });
     }
 
     /// <summary>
-    /// Retrieves all signals of a specific type from the specified table.
+    /// Retrieves all signals of a specific type from a table named after the type T.
     /// </summary>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
     /// <param name="signalType">Type of signal to filter by (optional)</param>
     /// <returns>An enumerable of signal data</returns>
-    public IEnumerable<SignalData> GetSignals(string tableName, string? signalType = null)
+    public IEnumerable<SignalData> GetSignals<T>(string? signalType = null)
     {
+        var tableName = GetTableName<T>();
         var sql = string.IsNullOrEmpty(signalType)
-            ? $"SELECT id, signal_type, sample_rate, channels, data, metadata, created_at FROM {tableName}"
-            : $"SELECT id, signal_type, sample_rate, channels, data, metadata, created_at FROM {tableName} WHERE signal_type = @SignalType";
+            ? $"SELECT id, signal_type, sample_rate, channels, data, metadata, created_at FROM [{tableName}]"
+            : $"SELECT id, signal_type, sample_rate, channels, data, metadata, created_at FROM [{tableName}] WHERE signal_type = @SignalType";
 
         return _connection.Query<SignalData>(sql, new { SignalType = signalType });
     }
 
     /// <summary>
-    /// Deletes a signal by its ID from the specified table.
+    /// Deletes a signal by its ID from a table named after the type T.
     /// </summary>
-    /// <param name="tableName">Name of the table</param>
+    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
     /// <param name="id">Unique identifier of the signal to delete</param>
     /// <returns>True if the signal was deleted, false if it didn't exist</returns>
-    public bool DeleteSignal(string tableName, string id)
+    public bool DeleteSignal<T>(string id)
     {
-        var sql = $"DELETE FROM {tableName} WHERE id = @Id";
+        var tableName = GetTableName<T>();
+        var sql = $"DELETE FROM [{tableName}] WHERE id = @Id";
         var affectedRows = _connection.Execute(sql, new { Id = id });
         return affectedRows > 0;
     }
