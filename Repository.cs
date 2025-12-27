@@ -5,10 +5,10 @@ using System.Data;
 namespace JsonbStore;
 
 /// <summary>
-/// A high-performance repository for storing JSON objects and binary signals in a single SQLite file.
-/// Uses Dapper for minimal mapping overhead and supports both JSON document storage and raw binary data.
+/// A high-performance repository for storing JSON objects in a single SQLite file.
+/// Uses Dapper for minimal mapping overhead and supports JSON document storage.
 /// </summary>
-public class Repository : IDisposable
+public class Repository : IAsyncDisposable, IDisposable
 {
     private readonly SqliteConnection _connection;
     private readonly bool _ownsConnection;
@@ -63,7 +63,7 @@ public class Repository : IDisposable
     /// The table name will be the name of the type T.
     /// </summary>
     /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
-    public void CreateJsonTable<T>()
+    public async Task CreateTableAsync<T>()
     {
         var tableName = GetTableName<T>();
         var sql = $@"
@@ -73,28 +73,7 @@ public class Repository : IDisposable
                 created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
                 updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
             )";
-        _connection.Execute(sql);
-    }
-
-    /// <summary>
-    /// Creates a table for storing binary signals (e.g., EEG, EMG, EKG data).
-    /// The table name will be the name of the type T.
-    /// </summary>
-    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
-    public void CreateSignalTable<T>()
-    {
-        var tableName = GetTableName<T>();
-        var sql = $@"
-            CREATE TABLE IF NOT EXISTS [{tableName}] (
-                id TEXT PRIMARY KEY,
-                signal_type TEXT NOT NULL,
-                sample_rate REAL,
-                channels INTEGER,
-                data BLOB NOT NULL,
-                metadata TEXT,
-                created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
-            )";
-        _connection.Execute(sql);
+        await _connection.ExecuteAsync(sql);
     }
 
     /// <summary>
@@ -103,7 +82,7 @@ public class Repository : IDisposable
     /// <typeparam name="T">Type of the object to store (also used as table name)</typeparam>
     /// <param name="id">Unique identifier for the object</param>
     /// <param name="data">The object to store</param>
-    public void UpsertJson<T>(string id, T data)
+    public async Task UpsertAsync<T>(string id, T data)
     {
         var tableName = GetTableName<T>();
         var sql = $@"
@@ -113,7 +92,7 @@ public class Repository : IDisposable
                 data = excluded.data,
                 updated_at = excluded.updated_at";
 
-        _connection.Execute(sql, new
+        await _connection.ExecuteAsync(sql, new
         {
             Id = id,
             Data = System.Text.Json.JsonSerializer.Serialize(data)
@@ -126,11 +105,11 @@ public class Repository : IDisposable
     /// <typeparam name="T">Type of the object to retrieve (also used as table name)</typeparam>
     /// <param name="id">Unique identifier of the object</param>
     /// <returns>The deserialized object, or default if not found</returns>
-    public T? GetJson<T>(string id)
+    public async Task<T?> GetAsync<T>(string id)
     {
         var tableName = GetTableName<T>();
         var sql = $"SELECT data FROM [{tableName}] WHERE id = @Id";
-        var json = _connection.QueryFirstOrDefault<string>(sql, new { Id = id });
+        var json = await _connection.QueryFirstOrDefaultAsync<string>(sql, new { Id = id });
 
         if (string.IsNullOrEmpty(json))
         {
@@ -145,20 +124,22 @@ public class Repository : IDisposable
     /// </summary>
     /// <typeparam name="T">Type of the objects to retrieve (also used as table name)</typeparam>
     /// <returns>An enumerable of deserialized objects</returns>
-    public IEnumerable<T> GetAllJson<T>()
+    public async Task<IEnumerable<T>> GetAllAsync<T>()
     {
         var tableName = GetTableName<T>();
         var sql = $"SELECT data FROM [{tableName}]";
-        var jsonResults = _connection.Query<string>(sql);
+        var jsonResults = await _connection.QueryAsync<string>(sql);
 
+        var results = new List<T>();
         foreach (var json in jsonResults)
         {
             var item = System.Text.Json.JsonSerializer.Deserialize<T>(json);
             if (item != null)
             {
-                yield return item;
+                results.Add(item);
             }
         }
+        return results;
     }
 
     /// <summary>
@@ -167,123 +148,41 @@ public class Repository : IDisposable
     /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
     /// <param name="id">Unique identifier of the object to delete</param>
     /// <returns>True if the object was deleted, false if it didn't exist</returns>
-    public bool DeleteJson<T>(string id)
+    public async Task<bool> DeleteAsync<T>(string id)
     {
         var tableName = GetTableName<T>();
         var sql = $"DELETE FROM [{tableName}] WHERE id = @Id";
-        var affectedRows = _connection.Execute(sql, new { Id = id });
-        return affectedRows > 0;
-    }
-
-    /// <summary>
-    /// Inserts or updates a binary signal in a table named after the type T.
-    /// </summary>
-    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
-    /// <param name="id">Unique identifier for the signal</param>
-    /// <param name="signalType">Type of signal (e.g., "EEG", "EMG", "EKG")</param>
-    /// <param name="data">Raw binary signal data</param>
-    /// <param name="sampleRate">Sample rate in Hz (optional)</param>
-    /// <param name="channels">Number of channels (optional)</param>
-    /// <param name="metadata">Additional metadata as JSON (optional)</param>
-    public void UpsertSignal<T>(string id, string signalType, byte[] data,
-        double? sampleRate = null, int? channels = null, string? metadata = null)
-    {
-        var tableName = GetTableName<T>();
-        var sql = $@"
-            INSERT INTO [{tableName}] (id, signal_type, sample_rate, channels, data, metadata)
-            VALUES (@Id, @SignalType, @SampleRate, @Channels, @Data, @Metadata)
-            ON CONFLICT(id) DO UPDATE SET
-                signal_type = excluded.signal_type,
-                sample_rate = excluded.sample_rate,
-                channels = excluded.channels,
-                data = excluded.data,
-                metadata = excluded.metadata";
-
-        _connection.Execute(sql, new
-        {
-            Id = id,
-            SignalType = signalType,
-            SampleRate = sampleRate,
-            Channels = channels,
-            Data = data,
-            Metadata = metadata
-        });
-    }
-
-    /// <summary>
-    /// Retrieves a binary signal by its ID from a table named after the type T.
-    /// </summary>
-    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
-    /// <param name="id">Unique identifier of the signal</param>
-    /// <returns>The signal data and metadata, or null if not found</returns>
-    public SignalData? GetSignal<T>(string id)
-    {
-        var tableName = GetTableName<T>();
-        var sql = $@"
-            SELECT id, signal_type, sample_rate, channels, data, metadata, created_at
-            FROM [{tableName}]
-            WHERE id = @Id";
-
-        return _connection.QueryFirstOrDefault<SignalData>(sql, new { Id = id });
-    }
-
-    /// <summary>
-    /// Retrieves all signals of a specific type from a table named after the type T.
-    /// </summary>
-    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
-    /// <param name="signalType">Type of signal to filter by (optional)</param>
-    /// <returns>An enumerable of signal data</returns>
-    public IEnumerable<SignalData> GetSignals<T>(string? signalType = null)
-    {
-        var tableName = GetTableName<T>();
-        var sql = string.IsNullOrEmpty(signalType)
-            ? $"SELECT id, signal_type, sample_rate, channels, data, metadata, created_at FROM [{tableName}]"
-            : $"SELECT id, signal_type, sample_rate, channels, data, metadata, created_at FROM [{tableName}] WHERE signal_type = @SignalType";
-
-        return _connection.Query<SignalData>(sql, new { SignalType = signalType });
-    }
-
-    /// <summary>
-    /// Deletes a signal by its ID from a table named after the type T.
-    /// </summary>
-    /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
-    /// <param name="id">Unique identifier of the signal to delete</param>
-    /// <returns>True if the signal was deleted, false if it didn't exist</returns>
-    public bool DeleteSignal<T>(string id)
-    {
-        var tableName = GetTableName<T>();
-        var sql = $"DELETE FROM [{tableName}] WHERE id = @Id";
-        var affectedRows = _connection.Execute(sql, new { Id = id });
+        var affectedRows = await _connection.ExecuteAsync(sql, new { Id = id });
         return affectedRows > 0;
     }
 
     /// <summary>
     /// Executes a batch of operations within a transaction for optimal performance.
     /// </summary>
-    /// <param name="action">Action to execute within the transaction</param>
-    public void ExecuteInTransaction(Action<IDbTransaction> action)
+    /// <param name="action">Async action to execute within the transaction</param>
+    public async Task ExecuteInTransactionAsync(Func<IDbTransaction, Task> action)
     {
-        ExecuteInTransactionCore(trans => action(trans));
+        await ExecuteInTransactionCoreAsync(action);
     }
 
     /// <summary>
     /// Executes a batch of operations within a transaction for optimal performance.
     /// </summary>
-    /// <param name="action">Action to execute within the transaction</param>
-    public void ExecuteInTransaction(Action action)
+    /// <param name="action">Async action to execute within the transaction</param>
+    public async Task ExecuteInTransactionAsync(Func<Task> action)
     {
-        ExecuteInTransactionCore(_ => action());
+        await ExecuteInTransactionCoreAsync(_ => action());
     }
 
     /// <summary>
     /// Core transaction execution logic.
     /// </summary>
-    private void ExecuteInTransactionCore(Action<IDbTransaction> action)
+    private async Task ExecuteInTransactionCoreAsync(Func<IDbTransaction, Task> action)
     {
         using var transaction = _connection.BeginTransaction();
         try
         {
-            action(transaction);
+            await action(transaction);
             transaction.Commit();
         }
         catch
@@ -308,25 +207,18 @@ public class Repository : IDisposable
             _connection?.Dispose();
         }
     }
-}
 
-/// <summary>
-/// Represents binary signal data retrieved from the database.
-/// </summary>
-public class SignalData
-{
-    /// <summary>Gets or sets the unique identifier.</summary>
-    public string Id { get; set; } = string.Empty;
-    /// <summary>Gets or sets the signal type (e.g., EEG, EMG, EKG).</summary>
-    public string SignalType { get; set; } = string.Empty;
-    /// <summary>Gets or sets the sample rate in Hz.</summary>
-    public double? SampleRate { get; set; }
-    /// <summary>Gets or sets the number of channels.</summary>
-    public int? Channels { get; set; }
-    /// <summary>Gets or sets the raw binary signal data.</summary>
-    public byte[] Data { get; set; } = Array.Empty<byte>();
-    /// <summary>Gets or sets additional metadata as JSON.</summary>
-    public string? Metadata { get; set; }
-    /// <summary>Gets or sets the creation timestamp (Unix epoch).</summary>
-    public long CreatedAt { get; set; }
+    /// <summary>
+    /// Asynchronously disposes the repository and closes the database connection if owned.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_ownsConnection)
+        {
+            if (_connection != null)
+            {
+                await _connection.DisposeAsync();
+            }
+        }
+    }
 }

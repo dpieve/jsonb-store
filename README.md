@@ -7,21 +7,21 @@ A high-performance, single-file application data format using C#, SQLite (Micros
 A single SQLite .db file acting as an "Application File Format".
 
 ## Data Storage Strategy
-Treat SQLite as a hybrid relational/document store. Small JSON metadata files are stored as binary JSON (JSONB) or TEXT blobs to avoid filesystem overhead. High-frequency binary signal data is stored as BLOB columns for maximum throughput.
+Treat SQLite as a hybrid relational/document store. Small JSON metadata files are stored as TEXT to avoid filesystem overhead.
 
 ## Data Access Layer
 Use Dapper for next-to-zero mapping overhead.
 
 ## Custom Logic
-Implement a SqlMapper.TypeHandler<T> for Dapper to automatically handle JSON serialization/deserialization of C# objects into SQLite text/blob columns.
+Automatic JSON serialization/deserialization of C# objects into SQLite TEXT columns using System.Text.Json.
 
 ## Performance Requirements
 - Minimize System Calls: The design must utilize SQLite's ability to be up to 35% faster than raw file I/O for small blobs by reducing open() and close() operations.
 - Transaction Batching: All writes must be grouped into transactions to maintain high write speed.
-- Modern SQLite Features: Utilize JSONB (SQLite 3.45+) for binary-optimized JSON storage to eliminate repetitive parsing overhead.
+- Async Operations: All database operations are async for optimal performance and scalability.
 
 ## Configuration
-The library should default to WAL (Write-Ahead Logging) mode and synchronous = NORMAL for optimal balance between safety and performance.
+The library defaults to WAL (Write-Ahead Logging) mode and synchronous = NORMAL for optimal balance between safety and performance.
 
 # Usage
 
@@ -48,13 +48,13 @@ public class Person
 }
 
 // Open or create a database
-using var repo = new Repository("mydata.db");
+await using var repo = new Repository("mydata.db");
 
 // Create a table (table name will be "Person")
-repo.CreateJsonTable<Person>();
+await repo.CreateTableAsync<Person>();
 
 // Insert or update
-repo.UpsertJson("person1", new Person 
+await repo.UpsertAsync("person1", new Person 
 { 
     Name = "John Doe", 
     Age = 30, 
@@ -62,75 +62,62 @@ repo.UpsertJson("person1", new Person
 });
 
 // Retrieve
-var person = repo.GetJson<Person>("person1");
+var person = await repo.GetAsync<Person>("person1");
 
 // Get all
-var allPeople = repo.GetAllJson<Person>();
+var allPeople = await repo.GetAllAsync<Person>();
 
 // Delete
-repo.DeleteJson<Person>("person1");
-```
-
-### Binary Signal Storage (EEG, EMG, EKG)
-
-```csharp
-using JsonbStore;
-
-// Define a signal type
-public class BiosignalRecording { }
-
-// Open database
-using var repo = new Repository("biosignals.db");
-
-// Create signal table
-repo.CreateSignalTable<BiosignalRecording>();
-
-// Store binary signal data
-byte[] eegData = /* your signal data */;
-repo.UpsertSignal<BiosignalRecording>(
-    id: "eeg_001",
-    signalType: "EEG",
-    data: eegData,
-    sampleRate: 250.0,
-    channels: 8,
-    metadata: "{\"patientId\":\"P001\"}"
-);
-
-// Retrieve signal
-var signal = repo.GetSignal<BiosignalRecording>("eeg_001");
-
-// Get all signals of a type
-var eegSignals = repo.GetSignals<BiosignalRecording>("EEG");
+await repo.DeleteAsync<Person>("person1");
 ```
 
 ### Transaction Batching
 
 ```csharp
 // Batch multiple operations in a transaction for performance
-repo.ExecuteInTransaction(() =>
+await repo.ExecuteInTransactionAsync(async () =>
 {
     for (int i = 0; i < 1000; i++)
     {
-        repo.UpsertJson($"record_{i}", new MyData { /* ... */ });
+        await repo.UpsertAsync($"record_{i}", new MyData { /* ... */ });
     }
 });
 ```
 
-## Running Examples
+## Running Tests
 
-See the [Examples](Examples/UsageExamples.cs) folder for comprehensive usage examples, or run the demo:
+The project includes comprehensive unit and integration tests using xUnit.
 
+Run unit tests:
 ```bash
-cd Tests
-dotnet run
+cd tests/JsonbStore.UnitTests
+dotnet test
+```
+
+Run integration tests:
+```bash
+cd tests/JsonbStore.IntegrationTests
+dotnet test
+```
+
+Run all tests:
+```bash
+dotnet test
 ```
 
 ## Features
 
 - ✅ **Generic Repository Pattern**: Type-safe CRUD operations with automatic table naming
-- ✅ **JsonTypeHandler**: Automatic JSON serialization/deserialization for Dapper
-- ✅ **Binary Signal Storage**: Optimized for high-frequency biosignal data (EEG, EMG, EKG)
+- ✅ **Async/Await**: All database operations are fully async
 - ✅ **Transaction Support**: Batch operations for high-performance writes
 - ✅ **WAL Mode**: Automatically configured for optimal concurrency
 - ✅ **Zero SQL Injection Risk**: Table names derived from types, not user input
 - ✅ **Cross-Platform**: Works on Windows, Linux, and macOS
+- ✅ **.NET 10**: Built on the latest .NET platform
+- ✅ **Comprehensive Tests**: Unit and integration tests with xUnit
+
+## Dependencies
+
+- .NET 10
+- Dapper 2.1.66
+- Microsoft.Data.Sqlite 10.0.0
