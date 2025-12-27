@@ -263,17 +263,7 @@ public class Repository : IDisposable
     /// <param name="action">Action to execute within the transaction</param>
     public void ExecuteInTransaction(Action<IDbTransaction> action)
     {
-        using var transaction = _connection.BeginTransaction();
-        try
-        {
-            action(transaction);
-            transaction.Commit();
-        }
-        catch
-        {
-            transaction.Rollback();
-            throw;
-        }
+        ExecuteInTransactionCore(trans => action(trans));
     }
 
     /// <summary>
@@ -282,10 +272,18 @@ public class Repository : IDisposable
     /// <param name="action">Action to execute within the transaction</param>
     public void ExecuteInTransaction(Action action)
     {
+        ExecuteInTransactionCore(_ => action());
+    }
+
+    /// <summary>
+    /// Core transaction execution logic.
+    /// </summary>
+    private void ExecuteInTransactionCore(Action<IDbTransaction> action)
+    {
         using var transaction = _connection.BeginTransaction();
         try
         {
-            action();
+            action(transaction);
             transaction.Commit();
         }
         catch

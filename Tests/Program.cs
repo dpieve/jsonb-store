@@ -27,7 +27,8 @@ class Program
 
     static void TestJsonStorage()
     {
-        using var repo = new Repository("/tmp/test_json.db");
+        var dbPath = Path.Combine(Path.GetTempPath(), "test_json.db");
+        using var repo = new Repository(dbPath);
         repo.CreateJsonTable<Person>();
 
         // Insert test data
@@ -74,7 +75,8 @@ class Program
 
     static void TestSignalStorage()
     {
-        using var repo = new Repository("/tmp/test_signals.db");
+        var dbPath = Path.Combine(Path.GetTempPath(), "test_signals.db");
+        using var repo = new Repository(dbPath);
         repo.CreateSignalTable<BiosignalRecording>();
 
         // Create sample EEG data
@@ -132,7 +134,8 @@ class Program
 
     static void TestTransactionBatching()
     {
-        using var repo = new Repository("/tmp/test_batch.db");
+        var dbPath = Path.Combine(Path.GetTempPath(), "test_batch.db");
+        using var repo = new Repository(dbPath);
         repo.CreateJsonTable<Metric>();
 
         var startTime = DateTime.UtcNow;
