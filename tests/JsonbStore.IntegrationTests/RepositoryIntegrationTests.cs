@@ -1,5 +1,4 @@
 using Dapper;
-using FluentAssertions;
 using Xunit;
 
 namespace JsonbStore.IntegrationTests;
@@ -33,7 +32,7 @@ public class RepositoryIntegrationTests : IDisposable
         // Assert
         var checkSql = "SELECT name FROM sqlite_master WHERE type='table' AND name='Person'";
         var result = _repository.Connection.QueryFirstOrDefault<string>(checkSql);
-        result.Should().Be("Person");
+        Assert.Equal("Person", result);
     }
 
     [Fact]
@@ -48,10 +47,10 @@ public class RepositoryIntegrationTests : IDisposable
 
         // Assert
         var retrieved = await _repository.GetAsync<Person>("person1");
-        retrieved.Should().NotBeNull();
-        retrieved!.Name.Should().Be("John Doe");
-        retrieved.Age.Should().Be(30);
-        retrieved.Email.Should().Be("john@example.com");
+        Assert.NotNull(retrieved);
+        Assert.Equal("John Doe", retrieved.Name);
+        Assert.Equal(30, retrieved.Age);
+        Assert.Equal("john@example.com", retrieved.Email);
     }
 
     [Fact]
@@ -68,9 +67,9 @@ public class RepositoryIntegrationTests : IDisposable
 
         // Assert
         var retrieved = await _repository.GetAsync<Person>("person1");
-        retrieved.Should().NotBeNull();
-        retrieved!.Age.Should().Be(31);
-        retrieved.Email.Should().Be("john.doe@example.com");
+        Assert.NotNull(retrieved);
+        Assert.Equal(31, retrieved.Age);
+        Assert.Equal("john.doe@example.com", retrieved.Email);
     }
 
     [Fact]
@@ -83,7 +82,7 @@ public class RepositoryIntegrationTests : IDisposable
         var result = await _repository.GetAsync<Person>("nonexistent");
 
         // Assert
-        result.Should().BeNull();
+        Assert.Null(result);
     }
 
     [Fact]
@@ -97,12 +96,13 @@ public class RepositoryIntegrationTests : IDisposable
 
         // Act
         var results = await _repository.GetAllAsync<Person>();
+        var resultList = results.ToList();
 
         // Assert
-        results.Should().HaveCount(3);
-        results.Should().Contain(p => p.Name == "Alice");
-        results.Should().Contain(p => p.Name == "Bob");
-        results.Should().Contain(p => p.Name == "Charlie");
+        Assert.Equal(3, resultList.Count);
+        Assert.Contains(resultList, p => p.Name == "Alice");
+        Assert.Contains(resultList, p => p.Name == "Bob");
+        Assert.Contains(resultList, p => p.Name == "Charlie");
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class RepositoryIntegrationTests : IDisposable
         var results = await _repository.GetAllAsync<Person>();
 
         // Assert
-        results.Should().BeEmpty();
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -129,9 +129,9 @@ public class RepositoryIntegrationTests : IDisposable
         var result = await _repository.DeleteAsync<Person>("person1");
 
         // Assert
-        result.Should().BeTrue();
+        Assert.True(result);
         var retrieved = await _repository.GetAsync<Person>("person1");
-        retrieved.Should().BeNull();
+        Assert.Null(retrieved);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class RepositoryIntegrationTests : IDisposable
         var result = await _repository.DeleteAsync<Person>("nonexistent");
 
         // Assert
-        result.Should().BeFalse();
+        Assert.False(result);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class RepositoryIntegrationTests : IDisposable
 
         // Assert
         var results = await _repository.GetAllAsync<Person>();
-        results.Should().HaveCount(3);
+        Assert.Equal(3, results.Count());
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class RepositoryIntegrationTests : IDisposable
 
         // Verify rollback
         var results = await _repository.GetAllAsync<Person>();
-        results.Should().BeEmpty();
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -206,11 +206,11 @@ public class RepositoryIntegrationTests : IDisposable
         var retrieved = await _repository.GetAsync<ComplexData>("complex1");
 
         // Assert
-        retrieved.Should().NotBeNull();
-        retrieved!.Id.Should().Be(1);
-        retrieved.Name.Should().Be("Test");
-        retrieved.Tags.Should().HaveCount(3);
-        retrieved.Metadata.Should().HaveCount(2);
+        Assert.NotNull(retrieved);
+        Assert.Equal(1, retrieved.Id);
+        Assert.Equal("Test", retrieved.Name);
+        Assert.Equal(3, retrieved.Tags.Count);
+        Assert.Equal(2, retrieved.Metadata.Count);
     }
 
     // Test models

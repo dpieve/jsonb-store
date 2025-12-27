@@ -1,5 +1,4 @@
 using Dapper;
-using FluentAssertions;
 using Xunit;
 
 namespace JsonbStore.UnitTests;
@@ -20,9 +19,9 @@ public class RepositoryTests
         using var repo = new Repository(_testDbPath);
 
         // Assert
-        repo.Should().NotBeNull();
-        repo.Connection.Should().NotBeNull();
-        repo.Connection.State.Should().Be(System.Data.ConnectionState.Open);
+        Assert.NotNull(repo);
+        Assert.NotNull(repo.Connection);
+        Assert.Equal(System.Data.ConnectionState.Open, repo.Connection.State);
         
         // Cleanup
         File.Delete(_testDbPath);
@@ -43,7 +42,7 @@ public class RepositoryTests
             // Assert - verify table exists with correct name
             var checkSql = "SELECT name FROM sqlite_master WHERE type='table' AND name='TestPerson'";
             var result = repo.Connection.QueryFirstOrDefault<string>(checkSql);
-            result.Should().Be("TestPerson");
+            Assert.Equal("TestPerson", result);
         }
         
         // Cleanup
@@ -61,7 +60,7 @@ public class RepositoryTests
         repo.Dispose();
 
         // Assert
-        connection.State.Should().Be(System.Data.ConnectionState.Closed);
+        Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
         
         // Cleanup
         if (File.Exists(_testDbPath))
@@ -81,7 +80,7 @@ public class RepositoryTests
         await repo.DisposeAsync();
 
         // Assert
-        connection.State.Should().Be(System.Data.ConnectionState.Closed);
+        Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
         
         // Cleanup
         if (File.Exists(_testDbPath))

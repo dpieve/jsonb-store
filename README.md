@@ -7,18 +7,19 @@ A high-performance, single-file application data format using C#, SQLite (Micros
 A single SQLite .db file acting as an "Application File Format".
 
 ## Data Storage Strategy
-Treat SQLite as a hybrid relational/document store. Small JSON metadata files are stored as TEXT to avoid filesystem overhead.
+Treat SQLite as a hybrid relational/document store. JSON data is stored in **JSONB format** (binary JSON introduced in SQLite 3.45+) for optimal storage efficiency and query performance.
 
 ## Data Access Layer
 Use Dapper for next-to-zero mapping overhead.
 
 ## Custom Logic
-Automatic JSON serialization/deserialization of C# objects into SQLite TEXT columns using System.Text.Json.
+Automatic JSON serialization/deserialization of C# objects into SQLite BLOB columns using JSONB format with System.Text.Json.
 
 ## Performance Requirements
 - Minimize System Calls: The design must utilize SQLite's ability to be up to 35% faster than raw file I/O for small blobs by reducing open() and close() operations.
 - Transaction Batching: All writes must be grouped into transactions to maintain high write speed.
 - Async Operations: All database operations are async for optimal performance and scalability.
+- JSONB Format: Uses SQLite's JSONB format for binary-optimized JSON storage to eliminate repetitive parsing overhead.
 
 ## Configuration
 The library defaults to WAL (Write-Ahead Logging) mode and synchronous = NORMAL for optimal balance between safety and performance.
@@ -31,6 +32,11 @@ Build the project:
 ```bash
 dotnet build
 ```
+
+## Requirements
+
+- .NET 10
+- SQLite 3.45+ (for JSONB support)
 
 ## Quick Start
 
@@ -53,7 +59,7 @@ await using var repo = new Repository("mydata.db");
 // Create a table (table name will be "Person")
 await repo.CreateTableAsync<Person>();
 
-// Insert or update
+// Insert or update (stored as JSONB binary format)
 await repo.UpsertAsync("person1", new Person 
 { 
     Name = "John Doe", 
@@ -109,15 +115,29 @@ dotnet test
 
 - ✅ **Generic Repository Pattern**: Type-safe CRUD operations with automatic table naming
 - ✅ **Async/Await**: All database operations are fully async
+- ✅ **JSONB Format**: Uses SQLite 3.45+ JSONB for binary-optimized JSON storage
 - ✅ **Transaction Support**: Batch operations for high-performance writes
 - ✅ **WAL Mode**: Automatically configured for optimal concurrency
 - ✅ **Zero SQL Injection Risk**: Table names derived from types, not user input
 - ✅ **Cross-Platform**: Works on Windows, Linux, and macOS
 - ✅ **.NET 10**: Built on the latest .NET platform
 - ✅ **Comprehensive Tests**: Unit and integration tests with xUnit
+- ✅ **Minimal Dependencies**: Uses only essential packages (no FluentAssertions or other test-only dependencies in production code)
 
 ## Dependencies
 
 - .NET 10
 - Dapper 2.1.66
 - Microsoft.Data.Sqlite 10.0.0
+
+## How JSONB Storage Works
+
+The library uses SQLite's JSONB functions introduced in version 3.45+:
+
+- **Storage**: Uses `jsonb()` function to convert JSON text to binary JSONB format when inserting
+- **Retrieval**: Uses `json()` function to convert JSONB back to JSON text when querying
+- **Benefits**:
+  - More compact storage (binary format)
+  - Faster queries on JSON data
+  - Reduced parsing overhead
+  - Compatible with SQLite's JSON functions

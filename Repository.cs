@@ -6,7 +6,7 @@ namespace JsonbStore;
 
 /// <summary>
 /// A high-performance repository for storing JSON objects in a single SQLite file.
-/// Uses Dapper for minimal mapping overhead and supports JSON document storage.
+/// Uses Dapper for minimal mapping overhead and supports JSON document storage using JSONB format (SQLite 3.45+).
 /// </summary>
 public class Repository : IAsyncDisposable, IDisposable
 {
@@ -59,7 +59,7 @@ public class Repository : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
-    /// Creates a table for storing JSON objects with a generic schema.
+    /// Creates a table for storing JSON objects with a generic schema using JSONB format.
     /// The table name will be the name of the type T.
     /// </summary>
     /// <typeparam name="T">Type whose name will be used as the table name</typeparam>
@@ -69,7 +69,7 @@ public class Repository : IAsyncDisposable, IDisposable
         var sql = $@"
             CREATE TABLE IF NOT EXISTS [{tableName}] (
                 id TEXT PRIMARY KEY,
-                data TEXT NOT NULL,
+                data BLOB NOT NULL,
                 created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
                 updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
             )";
@@ -77,7 +77,7 @@ public class Repository : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
-    /// Inserts or updates a JSON object in a table named after the type T.
+    /// Inserts or updates a JSON object in a table named after the type T using JSONB format.
     /// </summary>
     /// <typeparam name="T">Type of the object to store (also used as table name)</typeparam>
     /// <param name="id">Unique identifier for the object</param>
@@ -85,17 +85,20 @@ public class Repository : IAsyncDisposable, IDisposable
     public async Task UpsertAsync<T>(string id, T data)
     {
         var tableName = GetTableName<T>();
+        var json = System.Text.Json.JsonSerializer.Serialize(data);
+        
+        // Use jsonb() function to convert JSON to JSONB format for storage
         var sql = $@"
             INSERT INTO [{tableName}] (id, data, updated_at)
-            VALUES (@Id, @Data, strftime('%s', 'now'))
+            VALUES (@Id, jsonb(@Data), strftime('%s', 'now'))
             ON CONFLICT(id) DO UPDATE SET
-                data = excluded.data,
-                updated_at = excluded.updated_at";
+                data = jsonb(@Data),
+                updated_at = strftime('%s', 'now')";
 
         await _connection.ExecuteAsync(sql, new
         {
             Id = id,
-            Data = System.Text.Json.JsonSerializer.Serialize(data)
+            Data = json
         });
     }
 
@@ -108,7 +111,9 @@ public class Repository : IAsyncDisposable, IDisposable
     public async Task<T?> GetAsync<T>(string id)
     {
         var tableName = GetTableName<T>();
-        var sql = $"SELECT data FROM [{tableName}] WHERE id = @Id";
+        
+        // Use json() function to convert JSONB back to JSON string
+        var sql = $"SELECT json(data) as data FROM [{tableName}] WHERE id = @Id";
         var json = await _connection.QueryFirstOrDefaultAsync<string>(sql, new { Id = id });
 
         if (string.IsNullOrEmpty(json))
@@ -127,7 +132,9 @@ public class Repository : IAsyncDisposable, IDisposable
     public async Task<IEnumerable<T>> GetAllAsync<T>()
     {
         var tableName = GetTableName<T>();
-        var sql = $"SELECT data FROM [{tableName}]";
+        
+        // Use json() function to convert JSONB back to JSON strings
+        var sql = $"SELECT json(data) as data FROM [{tableName}]";
         var jsonResults = await _connection.QueryAsync<string>(sql);
 
         var results = new List<T>();
