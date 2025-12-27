@@ -24,7 +24,13 @@ public class RepositoryTests
         Assert.Equal(System.Data.ConnectionState.Open, repo.Connection.State);
         
         // Cleanup
-        File.Delete(_testDbPath);
+        repo.Dispose();
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        if (File.Exists(_testDbPath))
+        {
+            try { File.Delete(_testDbPath); } catch { }
+        }
     }
 
     [Fact]
@@ -46,7 +52,12 @@ public class RepositoryTests
         }
         
         // Cleanup
-        File.Delete(testDbPath);
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        if (File.Exists(testDbPath))
+        {
+            try { File.Delete(testDbPath); } catch { }
+        }
     }
 
     [Fact]
@@ -63,9 +74,11 @@ public class RepositoryTests
         Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
         
         // Cleanup
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
         if (File.Exists(_testDbPath))
         {
-            File.Delete(_testDbPath);
+            try { File.Delete(_testDbPath); } catch { }
         }
     }
 
@@ -83,9 +96,11 @@ public class RepositoryTests
         Assert.Equal(System.Data.ConnectionState.Closed, connection.State);
         
         // Cleanup
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
         if (File.Exists(_testDbPath))
         {
-            File.Delete(_testDbPath);
+            try { File.Delete(_testDbPath); } catch { }
         }
     }
 
