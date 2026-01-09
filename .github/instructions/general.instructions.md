@@ -1,0 +1,47 @@
+# JsonbStore Project Instructions
+
+## Project Overview
+
+JsonbStore is a high-performance, hybrid SQLite library for .NET that combines:
+- **Document store convenience**: JSON/JSONB storage with automatic serialization
+- **Relational database power**: Full SQL access, joins, indexes, and traditional tables
+
+The goal is NOT an opaque document database. Users should seamlessly mix document-style and relational patterns.
+
+## Core Technologies
+
+- **.NET 10** - Target framework
+- **SQLite 3.45+** - Required for JSONB support
+- **Microsoft.Data.Sqlite** - SQLite provider
+- **Dapper** - Micro-ORM for minimal mapping overhead
+- **System.Text.Json** - Default JSON serializer
+
+## Key Architectural Principles
+
+1. **Performance First**: Design for SQLite's strength (35% faster than raw file I/O for small blobs)
+2. **Async Everything**: All database operations must be async
+3. **JSONB Format**: Always use `jsonb()` on write, `json()` on read
+4. **WAL Mode**: Default to WAL + synchronous=NORMAL
+5. **Zero SQL Injection**: Table names from types, all queries parameterized
+6. **Hybrid Philosophy**: Never prevent raw SQL or relational patterns
+
+## Project Structure
+
+```
+src/
+├── JsonbStore/                    # Main library
+│   ├── Repository.cs              # Core repository implementation
+│   ├── SqliteJsonbTypeHandler.cs  # Dapper type handler for JSONB
+│   └── JsonTypeHandler.cs         # Alternative type handler
+└── tests/
+    ├── JsonbStore.UnitTests/      # Unit tests (mocked)
+    └── JsonbStore.IntegrationTests/ # Integration tests (real SQLite)
+```
+
+## When Modifying This Project
+
+- Check `IMPLEMENTATION_CHECKLIST.md` for the roadmap
+- All public APIs need XML documentation
+- New features need both unit and integration tests
+- Consider performance implications of every change
+- Maintain backward compatibility once v1.0 is released
