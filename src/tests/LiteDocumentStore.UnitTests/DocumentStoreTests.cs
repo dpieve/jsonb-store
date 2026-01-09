@@ -109,6 +109,110 @@ public class DocumentStoreTests
         }
     }
 
+    [Fact]
+    public async Task Operations_OnClosedConnection_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var options = new DocumentStoreOptions { ConnectionString = $"Data Source={_testDbPath}" };
+        var connectionFactory = new DefaultConnectionFactory();
+        var connection = connectionFactory.CreateConnection(options);
+        connection.Close(); // Close the connection
+        var store = new DocumentStore(connection, ownsConnection: false);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await store.CreateTableAsync<TestPerson>());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await store.UpsertAsync("test-id", new TestPerson { Name = "Test" }));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await store.GetAsync<TestPerson>("test-id"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await store.GetAllAsync<TestPerson>());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await store.DeleteAsync<TestPerson>("test-id"));
+
+        // Cleanup
+        connection.Dispose();
+        if (File.Exists(_testDbPath))
+        {
+            try { File.Delete(_testDbPath); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task IsHealthyAsync_WithOpenConnection_ReturnsTrue()
+    {
+        // Arrange
+        var options = new DocumentStoreOptions { ConnectionString = $"Data Source={_testDbPath}" };
+        var connectionFactory = new DefaultConnectionFactory();
+        using var connection = connectionFactory.CreateConnection(options);
+        var store = new DocumentStore(connection, ownsConnection: false);
+
+        // Act
+        var isHealthy = await store.IsHealthyAsync();
+
+        // Assert
+        Assert.True(isHealthy);
+
+        // Cleanup
+        if (File.Exists(_testDbPath))
+        {
+            try { File.Delete(_testDbPath); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task IsHealthyAsync_WithClosedConnection_ReturnsFalse()
+    {
+        // Arrange
+        var options = new DocumentStoreOptions { ConnectionString = $"Data Source={_testDbPath}" };
+        var connectionFactory = new DefaultConnectionFactory();
+        var connection = connectionFactory.CreateConnection(options);
+        connection.Close();
+        var store = new DocumentStore(connection, ownsConnection: false);
+
+        // Act
+        var isHealthy = await store.IsHealthyAsync();
+
+        // Assert
+        Assert.False(isHealthy);
+
+        // Cleanup
+        connection.Dispose();
+        if (File.Exists(_testDbPath))
+        {
+            try { File.Delete(_testDbPath); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task IsHealthyAsync_OnDisposedStore_ReturnsFalse()
+    {
+        // Arrange
+        var options = new DocumentStoreOptions { ConnectionString = $"Data Source={_testDbPath}" };
+        var connectionFactory = new DefaultConnectionFactory();
+        var connection = connectionFactory.CreateConnection(options);
+        var store = new DocumentStore(connection, ownsConnection: false);
+
+        // Act
+        await store.DisposeAsync();
+        var isHealthy = await store.IsHealthyAsync();
+
+        // Assert
+        Assert.False(isHealthy);
+
+        // Cleanup
+        connection.Dispose();
+        if (File.Exists(_testDbPath))
+        {
+            try { File.Delete(_testDbPath); } catch { }
+        }
+    }
+
     private class TestPerson
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();

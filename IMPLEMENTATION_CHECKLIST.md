@@ -51,7 +51,6 @@ The implementation has progressed beyond the original Phase 1 scope with several
   - [x] **NEW**: `DocumentStoreOptionsBuilder` with fluent API
   - [x] **NEW**: Factory methods for in-memory, shared in-memory, and file-based databases
   - [x] **NEW**: Support for additional pragmas and custom serializer/naming convention per-store
-  - [x] **NEW**: Connection pooling configuration (UseConnectionPooling, MaxPoolSize)
   - [x] **NEW**: Foreign keys and busy timeout configuration
 
 - [x] **Dependency Injection support**
@@ -84,17 +83,14 @@ The implementation has progressed beyond the original Phase 1 scope with several
 
 - [x] **Connection pooling strategy**
   - [x] Single long-lived connection mode (current)
-  - [x] **NEW**: Configuration options for pooling (UseConnectionPooling, MaxPoolSize)
-  - [ ] Pool mode with `SqliteConnectionPool` wrapper (planned, not yet implemented)
-  - [ ] Configurable pool size and timeout
 
 - [x] **Proper resource management**
   - [x] `IAsyncDisposable` pattern (exists, verified correct)
   - [x] `IDisposable` pattern for synchronous disposal
   - [x] **NEW**: Conditional connection disposal based on ownership
   - [x] **NEW**: Connection state validation in property accessor
-  - [ ] Connection state validation before operations
-  - [ ] Graceful shutdown with WAL checkpoint
+  - [x] Connection state validation before operations
+  - [x] Graceful shutdown with WAL checkpoint
 
 - [x] **Factory pattern implementation**
   - [x] **NEW**: `IDocumentStoreFactory` interface
@@ -103,9 +99,9 @@ The implementation has progressed beyond the original Phase 1 scope with several
   - [x] **NEW**: Async factory methods (`CreateAsync`, `CreateConnectionAsync`)
   - [x] **NEW**: Connection configuration via `ConfigureConnection` and `ConfigureConnectionAsync`
 
-- [ ] **Health checks**
-  - [ ] `IsHealthyAsync()` method for liveness probes
-  - [ ] SQLite version validation (require 3.45+ for JSONB)
+- [x] **Health checks**
+  - [x] `IsHealthyAsync()` method for liveness probes
+  - [x] SQLite version validation (require 3.45+ for JSONB)
 
 ---
 
