@@ -107,22 +107,22 @@ The implementation has progressed beyond the original Phase 1 scope with several
 
 ## 3. Schema & Migration Management
 
-- [ ] **Table creation improvements**
-  - [ ] Support custom table names via attribute or fluent config
-  - [ ] Optional `version` column for optimistic concurrency
-  - [ ] Optional soft-delete (`deleted_at` column)
-  - [ ] Configurable primary key types (GUID, string, int with auto-increment)
+- [x] **Index management**
+  - [x] `CreateIndexAsync<T>(Expression<Func<T, object>> jsonPath)` for JSON path indexes
+  - [x] Automatic index on `id` (already exists via PRIMARY KEY)
+  - [x] Composite index support via `CreateCompositeIndexAsync<T>`
+  - [x] Index existence checking before creation
 
-- [ ] **Index management**
-  - [ ] `CreateIndexAsync<T>(Expression<Func<T, object>> jsonPath)` for JSON path indexes
-  - [ ] Automatic index on `id` (already exists via PRIMARY KEY)
-  - [ ] Composite index support
-  - [ ] Index existence checking before creation
-
-- [ ] **Schema versioning**
-  - [ ] Simple migration table (`__jsonb_migrations`)
-  - [ ] Up/down migration support
-  - [ ] Schema introspection helpers
+- [x] **Schema versioning**
+  - [x] Simple migration table (`__store_migrations`)
+  - [x] Up/down migration support
+  - [x] Schema introspection helpers
+  - [x] `MigrationRunner` class for managing migrations independently from DocumentStore
+  - [x] `IMigration` interface and `Migration` base class
+  - [x] `SchemaIntrospector` public class for querying database schema independently
+  - [x] Table, column, and index introspection methods
+  - [x] Database statistics retrieval
+  - [x] Clean separation: users pass connection to MigrationRunner and SchemaIntrospector directly
 
 ---
 
@@ -333,7 +333,7 @@ The implementation has progressed beyond the original Phase 1 scope with several
 
 - [ ] **NuGet package**
   - [ ] Proper `.nuspec` or SDK-style properties
-  - [ ] Source Link for debugging
+  - [ ] Source Link for debugging .snupkg
   - [ ] README in package
   - [ ] Icon and license metadata
 
