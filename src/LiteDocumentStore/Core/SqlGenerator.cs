@@ -152,4 +152,66 @@ internal static class SqlGenerator
 
         return $"DELETE FROM [{tableName}] WHERE id IN ({string.Join(", ", idParameters)})";
     }
+
+    /// <summary>
+    /// Generates SQL for querying documents by a JSON path and value.
+    /// </summary>
+    /// <param name="tableName">The table name</param>
+    /// <param name="jsonPath">The JSON path to query (e.g., '$.email')</param>
+    public static string GenerateQueryByJsonPathSql(string tableName, string jsonPath)
+    {
+        return $"SELECT json(data) as data FROM [{tableName}] WHERE json_extract(data, '{jsonPath}') = @Value";
+    }
+
+    /// <summary>
+    /// Generates SQL for querying documents with a custom WHERE clause.
+    /// </summary>
+    /// <param name="tableName">The table name</param>
+    /// <param name="whereClause">The WHERE clause (without the WHERE keyword)</param>
+    public static string GenerateQueryWithWhereSql(string tableName, string whereClause)
+    {
+        return $"SELECT json(data) as data FROM [{tableName}] WHERE {whereClause}";
+    }
+
+    /// <summary>
+    /// Generates SQL for selecting specific JSON fields using json_extract().
+    /// </summary>
+    /// <param name="tableName">The table name</param>
+    /// <param name="fieldSelections">Dictionary of field name to JSON path mappings</param>
+    /// <returns>SQL SELECT statement with json_extract() for each field</returns>
+    public static string GenerateSelectFieldsSql(string tableName, Dictionary<string, string> fieldSelections)
+    {
+        if (fieldSelections == null || fieldSelections.Count == 0)
+        {
+            throw new ArgumentException("At least one field selection is required.", nameof(fieldSelections));
+        }
+
+        var selectClauses = fieldSelections.Select(kvp =>
+            $"json_extract(data, '{kvp.Value}') as {kvp.Key}");
+
+        return $"SELECT {string.Join(", ", selectClauses)} FROM [{tableName}]";
+    }
+
+    /// <summary>
+    /// Generates SQL for selecting specific JSON fields with a WHERE clause.
+    /// </summary>
+    /// <param name="tableName">The table name</param>
+    /// <param name="fieldSelections">Dictionary of field name to JSON path mappings</param>
+    /// <param name="whereClause">The WHERE clause (without the WHERE keyword)</param>
+    /// <returns>SQL SELECT statement with json_extract() for each field and WHERE clause</returns>
+    public static string GenerateSelectFieldsWithWhereSql(
+        string tableName,
+        Dictionary<string, string> fieldSelections,
+        string whereClause)
+    {
+        if (fieldSelections == null || fieldSelections.Count == 0)
+        {
+            throw new ArgumentException("At least one field selection is required.", nameof(fieldSelections));
+        }
+
+        var selectClauses = fieldSelections.Select(kvp =>
+            $"json_extract(data, '{kvp.Value}') as {kvp.Key}");
+
+        return $"SELECT {string.Join(", ", selectClauses)} FROM [{tableName}] WHERE {whereClause}";
+    }
 }
