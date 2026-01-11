@@ -271,7 +271,6 @@ The implementation has progressed beyond the original Phase 1 scope with several
   - [x] All public APIs documented
   - [x] **NEW**: Comprehensive XML docs for all interfaces and public classes
   - [x] **NEW**: Parameter descriptions and return value documentation
-  - [ ] Include examples in `<example>` tags
 
 - [x] **README improvements**
   - [x] Quick start guide with code examples
@@ -279,9 +278,17 @@ The implementation has progressed beyond the original Phase 1 scope with several
   - [x] **NEW**: JSONB benefits explained
   - [x] **NEW**: CI/CD badges
 
-- [ ] **Sample projects**
-  - [ ] Console app example
-  - [ ] Multi-table relational + document hybrid example
+- [x] **Executable examples** (using .NET 10 single-file execution)
+  - [x] QuickStart.cs - Basic CRUD operations
+  - [x] VirtualColumn.cs - Performance optimization with virtual columns
+  - [x] HybridUsage.cs - Mix document storage with traditional SQL
+  - [x] ProjectionQuery.cs - Field projection for performance
+  - [x] IndexManagement.cs - Creating and using JSON path indexes
+  - [x] Migration.cs - Schema versioning and evolution
+  - [x] TransactionBatching.cs - Batch operations example
+  - [x] MultiDatabase.cs - Multiple database instances with IDocumentStoreFactory
+  - [x] MultiDatabaseKeyed.cs - Multiple database instances with keyed services
+  - [x] examples/README.md - Documentation for all examples
 
 ---
 
